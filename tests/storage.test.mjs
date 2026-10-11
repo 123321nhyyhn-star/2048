@@ -5,10 +5,11 @@ const before={board:[2,2,...Array(14).fill(0)],score:0,turns:0,elapsed:0,won:fal
 const payload={game:{board:[4,2,...Array(14).fill(0)],score:4,turns:1,elapsed:3,won:false,continued:false,undo:before},stats:{best:4},settings:{sound:false,volume:30}};
 const text=JSON.stringify(payload);
 function memory(initial=null){let value=initial;return {getItem:()=>value,setItem:(_key,next)=>value=next};}
-test('save restores an undo snapshot and only known validated fields',()=>{
-  const restored=parseSave(text);assert.deepEqual(restored.game.undo,before);assert.equal(restored.game.score,4);
+test('legacy saves retain the current game and discard removed undo snapshots',()=>{
+  const restored=parseSave(text);assert.equal('undo' in restored.game,false);assert.equal(restored.game.score,4);
+  assert.deepEqual(restored.game.board,payload.game.board);
   assert.equal(parseSave('invalid'),null);assert.equal(parseSave(JSON.stringify({...payload,game:{...payload.game,score:-1}})),null);
-  assert.equal(parseSave(JSON.stringify({...payload,game:{...payload.game,undo:{...before,turns:2}}})).game.undo,null);
+  assert.equal('undo' in parseSave(JSON.stringify({...payload,game:{...payload.game,undo:{...before,turns:2}}})).game,false);
 });
 test('native Preferences takes priority and a corrupt native save falls back to web storage',()=>{
   const nativeText=JSON.stringify({...payload,game:{...payload.game,score:8}});

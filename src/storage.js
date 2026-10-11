@@ -12,8 +12,6 @@ export function parseSave(text) {
     if (typeof text !== 'string' || text.length > 32768) return null;
     const data = JSON.parse(text), game = snapshot(data?.game);
     if (!game) return null;
-    const undo = snapshot(data.game.undo);
-    game.undo = undo && undo.turns < game.turns && undo.score <= game.score ? undo : null;
     const stats = {};
     for (const key of ['best','bestTile','games','totalMerges','bestCombo']) if (isCount(data.stats?.[key])) stats[key] = data.stats[key];
     const settings = {};
@@ -24,15 +22,14 @@ export function parseSave(text) {
 }
 function webStorage() { try { return globalThis.localStorage; } catch { return undefined; } }
 export function readSave(native = globalThis.window?.CoreNative, store = webStorage()) {
-  // Native Preferences is authoritative in installed apps; the web store is a backup.
-  try { const saved = parseSave(native?.getSave?.()); if (saved) return saved; } catch { /* Try the web backup. */ }
+  try { const saved = parseSave(native?.getSave?.()); if (saved) return saved; } catch {}
   try { return parseSave(store?.getItem(SAVE_KEY)); } catch { return null; }
 }
 export function writeSave(payload, native = globalThis.window?.CoreNative, store = webStorage()) {
   const serialized = JSON.stringify(payload);
   if (serialized.length > 32768) throw new Error('Save exceeds the supported size');
   let written = false;
-  try { written = native?.saveGame?.(serialized) === true; } catch { /* Still write the web backup. */ }
-  try { if (store) { store.setItem(SAVE_KEY, serialized); written = true; } } catch { /* Preferences may still be available. */ }
+  try { written = native?.saveGame?.(serialized) === true; } catch {}
+  try { if (store) { store.setItem(SAVE_KEY, serialized); written = true; } } catch {}
   if (!written) throw new Error('No save storage is available');
 }

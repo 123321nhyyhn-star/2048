@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { buildHTML } from './build.mjs';
+import { buildSoundTestHTML } from './sound-test.mjs';
 const production=process.argv.includes('--production');
 const root=new URL('../',import.meta.url);
 const port=Number(process.env.PORT || 2048);
@@ -12,6 +13,9 @@ createServer(async(req,res)=>{
     if(pathname==='/' || pathname==='/index.html') {
       res.setHeader('Content-Type','text/html; charset=utf-8');
       res.end(production?await readFile(new URL('dist/index.html',root)):await buildHTML(true));
+    } else if(pathname==='/sound-test.html') {
+      res.setHeader('Content-Type','text/html; charset=utf-8');
+      res.end(production?await readFile(new URL('dist/sound-test.html',root)):await buildSoundTestHTML());
     } else if(['/icon.svg','/manifest.webmanifest','/sw.js'].includes(pathname)) {
       const extension=pathname.slice(pathname.lastIndexOf('.'));
       res.setHeader('Content-Type',mime[extension]);res.end(await readFile(new URL((production?'dist':'public')+pathname,root)));
