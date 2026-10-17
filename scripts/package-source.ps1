@@ -14,8 +14,8 @@ if ($publicProfileText -match '"(storePassword|keyPassword|profile|certpath|stor
     throw 'The public build profile still contains signing information. Source export stopped.'
 }
 # Allow only source and delivery resources; never include SDKs or signing material.
-$sourceRoots = @('src', 'public', 'scripts', 'tests', 'dist', 'harmony', 'android')
-$sourceFiles = @('README.md', 'QA.md', 'INSTALL.md', 'INTERNAL_TEST.md', 'ANDROID.md', 'index.html', 'package.json', 'package-lock.json', '.gitignore')
+$sourceRoots = @('src', 'public', 'scripts', 'tests', 'docs', 'dist', 'harmony', 'android')
+$sourceFiles = @('README.md', 'index.html', 'sound-test.html', 'package.json', 'package-lock.json', '.gitignore')
 $files = @($sourceFiles | ForEach-Object { Get-Item -LiteralPath (Join-Path $projectRoot $_) })
 foreach ($sourceRoot in $sourceRoots) {
     $files += Get-ChildItem -LiteralPath (Join-Path $projectRoot $sourceRoot) -File -Recurse | Where-Object {

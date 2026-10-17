@@ -1,82 +1,62 @@
 # 核芯 CORE 2048
 
-支持 HarmonyOS NEXT / 鸿蒙 5、6 和 Android 的 2048 小游戏工程。浅灰与炭黑面板、信号黄、模块编号、切角和细线网格，参考《明日方舟：终末地》的工业科幻视觉语言，界面与图标为原创实现。
+一款支持浏览器、HarmonyOS 和 Android 的离线 2048 小游戏。
 
-Android 可分享安装包：`artifacts/apk/core2048-1.0.0.apk`。保留音效、原生震动、动画与本机存档，Android 8.0+，不绑定设备。安装及重新构建说明见 [ANDROID.md](ANDROID.md)。鸿蒙 NEXT 无法直接安装 APK，继续使用原鸿蒙包。
+## 功能
 
-## 已实现
+- 标准 4 × 4 棋盘，支持触屏滑动、方向键和 WASD；合成 2048 后可继续挑战。
+- 自动保存棋盘、分数和设置，记录最高分、最高数字与合并统计。
+- 合并动画、电子音效与触感反馈，可调节音量或关闭声音、震动和动效。
+- 游戏资源随应用内置，原生应用无需联网；网页支持离线构建。
 
-- 手机棋盘滑动和方向键 / WASD，标准 4 × 4 规则；合成页固定在一屏内，手势拖出棋盘不会滚动页面。
-- 游玩界面仅显示 2048、分数、最高分、棋盘和重新开始；64 起从黄色经过橙色逐级加深至红色。
-- 平滑位移、合并弹跳、粒子、128 及以上核心的冲击反馈、连续合并提示。
-- Web Audio 实时合成碰撞音效：低频冲击、高频瞬态与随数字升高的音高，无需外部音频。
-- 鸿蒙 `SensorServiceKit.vibrator` 原生触感桥接，轻触 10ms / 合并 22ms / 高能 42ms。
-- 声音、音量、震动、动效设置；尊重系统减少动态效果偏好。
-- 重新开始确认、2048 达成后继续、失败提示。
-- 本机自动存档、历史最高分、最高数字、累计合并、最长连击、里程碑；兼容旧存档，忽略旧撤销记录。
-- 鸿蒙 Preferences 原生存档与网页存储备份；后台暂停计时、输入和音频，返回前台后可继续操作。
-- 游戏 JavaScript 与 CSS 内联到本地 HTML；鸿蒙包离线运行，不请求网络权限。
+## 本地运行
 
-## 电脑 / 手机浏览器预览
-
-需要 Node.js 20 或更高版本，不需要安装第三方依赖：
+需要 Node.js 20+，无需安装第三方依赖。在项目根目录执行：
 
 ```powershell
 npm run dev
 ```
 
-电脑打开 http://127.0.0.1:2048 。同一局域网内的手机可访问 `http://电脑局域网IP:2048`；HTTP 局域网预览无法保证浏览器震动、离线缓存或添加主屏幕能力。
+打开 [游戏](http://127.0.0.1:2048)；同一局域网的手机可使用电脑的局域网 IP 访问端口 `2048`。
 
-音效测试页：打开 `http://127.0.0.1:2048/sound-test.html`，查看 5 种音效的实际触发条件、逐个或依次试听，并调整合并数字、连击和试听音量。频率设置支持全部音效的滑块／Hz 输入、自动试听、原声对比、浏览器保存／恢复和参数复制。合并音支持碰撞组／音调组对比、5 个声部独奏、自选声部组合及时间安排查看。页面复用 `src/feedback.js`，不修改游戏存档与设置。执行 `node scripts/sound-test.mjs` 可单独生成 `dist/sound-test.html`，双击即可离线试听；完整构建也会生成此页面。
+| 命令 | 用途 |
+| --- | --- |
+| `npm test` | 运行规则、存档、音效与离线构建测试 |
+| `npm run build` | 生成 `dist/` 离线网页，并同步鸿蒙内置资源 |
+| `npm run preview` | 预览已构建的网页，需先运行 build |
+| `npm run qa` | 启动端口 `2050` 的隔离测试场景 |
+| `npm run android:build` | 构建 Android APK，需 Android SDK 和 JDK |
+| `npm run harmony:build` | 构建鸿蒙 HAP，需鸿蒙 SDK 和构建工具 |
+| `npm run harmony:release` | 构建鸿蒙发布 APP/HAP，分发需配置发布签名 |
 
-```powershell
-npm test
-npm run build
-npm run preview
-```
+网页产物位于 `dist/`，原生安装包位于 `artifacts/`，均由本地构建生成，不随源码提交。将 `dist/` 部署到 HTTPS 站点后可使用 Service Worker 离线缓存。
 
-构建生成 `dist/index.html`，并同步到 `harmony/entry/src/main/resources/rawfile/`。`dist` 也包含图标、manifest 和 Service Worker；生产浏览器部署到 HTTPS 后可离线缓存。`dev` 模式不注册 Service Worker。
+## 音效测试
 
-## 鸿蒙安装版
+启动开发服务器后，打开 [音效测试页](http://127.0.0.1:2048/sound-test.html)，可试听五种音效、调节频率、分声部试听并保存调音参数。测试页复用游戏音效，使用相同的输出增益与峰值压缩；调音设置独立保存，不影响游戏存档。
 
-工程目录是 `harmony/`，采用 Stage 模型、ArkTS `UIAbility` + ArkWeb 本地资源 + 原生震动接口。API 12 / HarmonyOS 5.0.0 为最低目标。开发环境可根据已安装 SDK 调整 `harmony/build-profile.json5` 的目标 SDK；兼容 SDK 保持 5.0.0(12)。
+执行 `node scripts/sound-test.mjs` 可单独生成 `dist/sound-test.html`，也可随完整构建生成，支持直接打开离线试听。
 
-真机自动签名和安装步骤见 `INSTALL.md`。
+## 目录
 
-邀请朋友安装的测试分发流程见 `INTERNAL_TEST.md`。`npm run harmony:release` 使用独立 release 产品生成 Release APP/HAP，输出到 `artifacts/release/`。当前工作工程已完成注册应用的发布签名，`harmony-release-signed.app` 已通过本地签名验证，可用于上传测试分发；平台合法性检测和测试版本发布尚待完成。公开源码包移除个人签名配置，重建时需配置自己的签名。
+| 路径 | 内容 |
+| --- | --- |
+| `src/` | 游戏规则、界面、存档、音效与音效测试页源码 |
+| `public/` | 图标、应用清单和 Service Worker |
+| `android/` | Android WebView 容器与原生接口 |
+| `harmony/` | 鸿蒙 ArkTS / ArkWeb 工程与内置网页资源 |
+| `scripts/` | 开发服务器、构建、资源同步和源码打包脚本 |
+| `tests/` | Node.js 自动化测试 |
+| `docs/` | 安装、构建、分发和验证说明 |
+| `index.html` / `sound-test.html` | 游戏与音效测试页入口模板 |
 
-1. 安装 DevEco Studio 和对应的 HarmonyOS SDK（不是 Android Studio）。
-2. 在根目录执行 `npm run build`；本次交付已经包含同步好的游戏资源。
-3. 使用 DevEco Studio 打开 `harmony/`，等待 OHPM / Hvigor 同步。
-4. 在 `File > Project Structure > Signing Configs` 配置自动签名，登录自己的华为开发者账号并连接测试手机或选择模拟器。
-5. 使用 IDE 的 Run 在设备上验证；使用 `Build > Build Hap(s)` 生成 HAP。签名配置应指向你的证书、Profile 和设备，工程没有附带个人证书。
-6. 构建输出在 `harmony/entry/build/` 下，实际路径以所用 DevEco/Hvigor 版本为准。
+`dist/` 存放网页构建结果，`artifacts/` 存放安装包及源码归档，`.tools/` 存放本机工具与签名材料；这些目录不纳入版本管理。
 
-也可使用完整的官方 Windows Command Line Tools 包构建。解压目录应包含 `bin`、`ohpm`、`hvigor` 和带 `default` 子目录的 `sdk`：
+## 文档
 
-```powershell
-$env:CORE_HARMONY_TOOLS = 'D:\command-line-tools'
-npm run harmony:build
-```
+- [Android 构建与安装](docs/android.md)
+- [鸿蒙构建与安装](docs/harmony.md)
+- [鸿蒙测试分发](docs/distribution.md)
+- [测试与验证](docs/qa.md)
 
-构建脚本使用工具包中的 Node，配置本次进程的 SDK 路径，构建离线页面，再执行 OHPM 和 Hvigor；生成的 HAP 会复制到 `artifacts/hap/`。可通过 `-SdkRoot` 指定单独的 SDK 目录。无 SDK 的精简工具包不能编译本工程。
-
-已配置 `ohos.permission.VIBRATE`。本次使用官方 Windows Command Line Tools 26.0.0.851、HarmonyOS SDK 26.0.0.105 成功编译、签名并生成 `artifacts/hap/entry-default-signed.hap`。包内兼容和目标 API 均为 12。2026-10-10 已安装、启动到 Mate 60 Pro（鸿蒙 6.1），用户试玩后确认效果可以并接受交付。当前签名是该设备的调试签名；给其他手机安装或正式发布时，应重新配置对应签名。
-
-后续回归检查可参考 `INSTALL.md` 的真机验收列表。详细验证范围见 `QA.md`。
-
-## 代码
-
-- `src/engine.js`：不依赖 UI 的游戏规则。
-- `src/main.js`：状态、生命周期、输入、弹窗与动效。
-- `src/storage.js`：存档校验、原生存储与网页备份。
-- `src/feedback.js`：电子音效与原生 / 浏览器触感。
-- `src/style.css`：响应式界面与减少动效。
-- `scripts/build.mjs`：零第三方依赖的单文件资源构建。
-- `harmony/entry/src/main/ets/pages/Index.ets`：鸿蒙本地页面、返回键和限定震动 / 存档桥接。
-- `scripts/qa-server.mjs`：独立端口的胜利、死局和生命周期测试场景，使用模拟原生接口。
-- `scripts/package-source.ps1`：打包源码，排除 SDK、构建缓存和签名证书，并在归档内移除个人签名配置，保留当前工作工程的配置。
-
-验证：14 项测试，包括 1,000 个随机棋盘 × 4 个方向的规则校验、离线构建可执行性和存档后端故障恢复。浏览器验证结果见 `QA.md`。
-
-接口参考：[鸿蒙网页加载](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/web-page-loading)、[OpenHarmony ArkWeb 桥接说明](https://github.com/openharmony/docs/blob/master/en/application-dev/faqs/faqs-arkui-web.md)、[官方震动接口](https://github.com/openharmony/docs/blob/master/en/application-dev/reference/apis-sensor-service-kit/js-apis-vibrator.md)。
+需要分享源码时，在项目根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-source.ps1`。归档输出到 `artifacts/`，包含文档与音效测试页，并移除鸿蒙个人签名配置。

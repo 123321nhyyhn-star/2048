@@ -5,6 +5,9 @@ commandline-tools-*.zip
 devecostudio-*.zip
 dist/
 artifacts/
+*.hap
+*.apk
+*.app
 harmony/.hvigor/
 harmony/.idea/
 harmony/oh_modules/
