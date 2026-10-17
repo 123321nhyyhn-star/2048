@@ -1,7 +1,25 @@
 let context;
 let noise;
+let audioOutput;
 export function unlockAudio() {
-  try { const Audio = window.AudioContext || window.webkitAudioContext; if (!Audio) return; context ||= new Audio(); if (context.state === 'suspended') context.resume().catch(() => {}); } catch {}
+  try {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) return;
+    context ||= new Audio();
+    if (!audioOutput) {
+      const master = context.createGain(), compressor = context.createDynamicsCompressor();
+      master.gain.value = 2;
+      compressor.threshold.value = -3;
+      compressor.knee.value = 3;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.12;
+      master.connect(compressor);
+      compressor.connect(context.destination);
+      audioOutput = master;
+    }
+    if (context.state === 'suspended') context.resume().catch(() => {});
+  } catch {}
 }
 export function suspendAudio() {
   try { if (context?.state === 'running') context.suspend().catch(()=>{}); } catch {  }
@@ -10,7 +28,7 @@ function tone(freq, type, start, duration, volume, endFreq = freq) {
   const osc = context.createOscillator(), gain = context.createGain();
   osc.type = type; osc.frequency.setValueAtTime(freq, start); osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), start + duration);
   gain.gain.setValueAtTime(0, start); gain.gain.linearRampToValueAtTime(volume, start + 0.006); gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(gain); gain.connect(context.destination); osc.start(start); osc.stop(start + duration + 0.02);
+  osc.connect(gain); gain.connect(audioOutput); osc.start(start); osc.stop(start + duration + 0.02);
 }
 export function soundFrequencies(value = 4, combo = 1, overrides = {}) {
   const level = Math.log2(value), base = 260 + level * 65 + Math.min(combo, 6) * 15;
@@ -26,7 +44,7 @@ export function soundFrequencies(value = 4, combo = 1, overrides = {}) {
   return frequencies;
 }
 export function sound(kind, value = 4, combo = 1, volume = 0.55, frequencyOverrides = {}) {
-  if (!context || context.state !== 'running' || volume <= 0) return;
+  if (!context || !audioOutput || context.state !== 'running' || volume <= 0) return;
   const now = context.currentTime;
   const f = soundFrequencies(value, combo, frequencyOverrides);
   if (kind === 'tap') return tone(f.tapStart, 'sine', now, 0.045, volume * 0.12, f.tapEnd);
@@ -36,7 +54,7 @@ export function sound(kind, value = 4, combo = 1, volume = 0.55, frequencyOverri
   return mergeSound(value, combo, volume, undefined, frequencyOverrides);
 }
 export function mergeSound(value = 4, combo = 1, volume = 0.55, layers = ['impact', 'rise', 'shimmer', 'echo', 'noise'], frequencyOverrides = {}) {
-  if (!context || context.state !== 'running' || volume <= 0) return;
+  if (!context || !audioOutput || context.state !== 'running' || volume <= 0) return;
   const now = context.currentTime;
   const f = soundFrequencies(value, combo, frequencyOverrides);
   if (layers.includes('impact')) tone(f.impactStart, 'sine', now, 0.17, volume * 0.42, f.impactEnd);
@@ -48,7 +66,7 @@ export function mergeSound(value = 4, combo = 1, volume = 0.55, layers = ['impac
   const source = context.createBufferSource(), gain = context.createGain(), filter = context.createBiquadFilter();
   source.buffer = noise; filter.type = 'highpass'; filter.frequency.value = f.noiseCutoff;
   gain.gain.setValueAtTime(volume * 0.07, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
-  source.connect(filter); filter.connect(gain); gain.connect(context.destination); source.start();
+  source.connect(filter); filter.connect(gain); gain.connect(audioOutput); source.start();
 }
 export function haptic(kind = 'light') {
   try { if (window.CoreNative?.impact) window.CoreNative.impact(kind); else navigator.vibrate?.(kind === 'heavy' ? [24, 25, 18] : kind === 'medium' ? 18 : 8); } catch {  }

@@ -7,19 +7,25 @@ const source = (await readFile(new URL('../src/feedback.js', import.meta.url), '
 function audioHarness() {
   const played = [];
   const frequencyEvents = [], filters = [];
+  const gainNodes = [], compressors = [], destination = { kind: 'speaker' };
   const parameter = (events = []) => ({ setValueAtTime(value, time) { events.push({ type: 'set', value, time }); }, exponentialRampToValueAtTime(value, time) { events.push({ type: 'ramp', value, time }); }, linearRampToValueAtTime() {} });
   class Audio {
     state = 'running';
     currentTime = 10;
     sampleRate = 48000;
-    destination = {};
+    destination = destination;
     createOscillator() {
       const events = [];
       frequencyEvents.push(events);
       const node = { frequency: parameter(events), connect() {}, stop() {}, start(time) { played.push({ kind: 'tone', type: node.type, time }); } };
       return node;
     }
-    createGain() { return { gain: parameter(), connect() {} }; }
+    createGain() { const node = { gain: parameter(), connections: [], connect(target) { this.connections.push(target); } }; gainNodes.push(node); return node; }
+    createDynamicsCompressor() {
+      const node = { threshold: {}, knee: {}, ratio: {}, attack: {}, release: {}, connections: [], connect(target) { this.connections.push(target); } };
+      compressors.push(node);
+      return node;
+    }
     createBiquadFilter() { const filter = { frequency: {}, connect() {} }; filters.push(filter); return filter; }
     createBuffer(channels, length) { return { getChannelData: () => new Float32Array(length) }; }
     createBufferSource() { return { connect() {}, start() { played.push({ kind: 'noise' }); } }; }
@@ -27,8 +33,26 @@ function audioHarness() {
   const scope = { window: { AudioContext: Audio } };
   runInNewContext(source, scope);
   scope.unlockAudio();
-  return { ...scope, played, frequencyEvents, filters };
+  return { ...scope, played, frequencyEvents, filters, gainNodes, compressors, destination };
 }
+
+test('all effects and merge solos share the boosted output and peak compressor', () => {
+  const audio = audioHarness();
+  audio.unlockAudio();
+  assert.equal(audio.gainNodes.length, 1, 'unlocking again must reuse the master bus');
+  assert.equal(audio.compressors.length, 1);
+  const master = audio.gainNodes[0], compressor = audio.compressors[0];
+  assert.equal(master.gain.value, 2);
+  assert.equal(master.connections[0], compressor);
+  assert.equal(compressor.connections[0], audio.destination);
+  assert.ok(compressor.threshold.value < 0);
+  assert.ok(compressor.ratio.value > 1);
+  for (const kind of ['tap', 'move', 'blocked', 'win', 'merge']) audio.sound(kind, 128, 1, 0.65);
+  audio.mergeSound(128, 1, 0.65, ['noise']);
+  audio.mergeSound(128, 1, 0.65, ['impact']);
+  assert.ok(audio.gainNodes.length > 10);
+  for (const gain of audio.gainNodes.slice(1)) assert.equal(gain.connections[0], master, 'no effect may bypass the master bus');
+});
 
 test('normal game merge and complete decomposition play the same voices', () => {
   for (const value of [4, 32, 64, 128, 2048]) {
