@@ -1,0 +1,62 @@
+name: Build downloadable Android APK
+
+on:
+  push:
+    branches:
+      - build/apk-download-20261023
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools
+        shell: pwsh
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run project tests
+        run: npm test
+
+      - name: Prepare test signing key
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path .tools/android-signing -Force | Out-Null
+          [System.IO.File]::WriteAllText((Join-Path $PWD '.tools/android-signing/key-password.txt'), 'android')
+          & "$env:JAVA_HOME/bin/keytool.exe" -genkeypair -keystore .tools/android-signing/core2048-android-release.p12 -storetype PKCS12 -storepass android -keypass android -alias core2048 -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if ($LASTEXITCODE -ne 0) { throw 'Test signing key generation failed' }
+
+      - name: Build and verify APK
+        shell: pwsh
+        run: |
+          & ./scripts/build-apk.ps1 -SdkRoot $env:ANDROID_HOME -JavaRoot $env:JAVA_HOME -NodePath (Get-Command node).Source
+
+      - name: Upload APK and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: core2048-1.0.0-android-apk
+          path: |
+            artifacts/apk/*.apk
+            artifacts/apk/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
